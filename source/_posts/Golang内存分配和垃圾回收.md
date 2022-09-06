@@ -26,7 +26,8 @@ description: go的垃圾回收机制讲解
 一个 Goroutine 的运行需要G+P+M三部分结合起来。
 
 
-![内存管理.jpg](https://s2.loli.net/2022/08/27/7LdYiPGBaJrCpgf.jpg)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/VY8SELNGe94Cjxng5VbT4M7FkUgyAfhpQu2e0dr5z6Za2b2aIw9peb8icIQyc29bC7VNuYfPh81ibaUdoSJg6ibicw/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
 
  图源：《Golang---内存管理(内存分配)》
 
@@ -105,7 +106,17 @@ go内存会分成堆区（Heap）和栈区（Stack）两个部分，程序在运
 - 优点：简单直接，回收速度快
 - 缺点：需要额外的空间存放计数，无法处理循环引用的情况；
 
+### 可达性分析
+对象引用链：通过一系列的称为"GCRoots"的对象作为起始点，从这些节点开始向下搜索，搜索所走过的路径称为引用链(Reference Chain) ，如果一个对象到GCRoots没有任何引用链相连，或者用图论的话来说，就是，从GCRoots到这个对象不可达时，则证明此对象是不可用的。
 
+根对象在垃圾回收的术语中又叫做根集合，它是垃圾回收器在标记过程时最先检查的对象，包括：
+
+1.全局变量：程序在编译期就能确定的那些存在于程序整个生命周期的变量。
+
+2.执行栈：每个 goroutine 都包含自己的执行栈，这些执行栈上包含栈上的变量及指向分配的堆内存区块的指针。
+
+3.寄存器：寄存器的值可能表示一个指针，参与计算的这些指针可能指向某些赋值器分配的堆内存区块。
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200801163955410.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzQyMDA5MjYy,size_16,color_FFFFFF,t_70)
 
 ### 标记清除法
 
@@ -171,7 +182,11 @@ Golang的垃圾回收（GC）算法使用的是无无分代（对象没有代际
 
 具体例子如下图所示，经过三色可达性分析，最后白色H为不可达的对象，是需要垃圾回收的对象。
 
+![图片](https://mmbiz.qpic.cn/mmbiz_png/VY8SELNGe94Cjxng5VbT4M7FkUgyAfhpTg82w6bpdH5FmHRajnIIJTbqbEAqJUZYYUw59vkeOzoxYkHjhOPTCg/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
+
 三色标记清除算法本身是不可以并发或者增量执行的，**它需要STW**，**而如果并发执行，用户程序可能在标记执行的过程中修改对象的指针。**
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/VY8SELNGe94Cjxng5VbT4M7FkUgyAfhpDGBI8liaibcvyXxOjP7kowzG1TnVmgAJefhegPo2IJiabXQ6IxnRdVqPQ/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
 
 ### **没有STW的异常情况一般会有2种：**
 
@@ -181,7 +196,7 @@ Golang的垃圾回收（GC）算法使用的是无无分代（对象没有代际
 
 
 
-### 没有STW的三色标记法情况下  --- 悬挂指针
+### 没有STW的三色标记法情况下  --- 悬挂指针的具体介绍
 
 先抛砖引玉，我们加入如果没有STW，那么也就不会再存在性能上的问题，那么接下来我们假设如果三色标记法不加入STW会发生什么事情？
 我们还是基于上述的三色并发标记法来说, 他是一定要依赖STW的. 因为如果不暂停程序, 程序的逻辑改变对象引用关系, 这种动作如果在标记阶段做了修改，会影响标记结果的正确性，我们来看看一个场景，如果三色标记法, 标记过程不使用STW将会发生什么事情?
@@ -235,7 +250,7 @@ Golang的垃圾回收（GC）算法使用的是无无分代（对象没有代际
 
 因此为了我们要解决并发扫描时的对象消失问题，保证垃圾收集算法的正确性，只需破坏这两个条件的任意一个即可，**屏障技术**就是在并发或者增量标记过程中保证**三色不变性**的重要技术。
 
-内存屏障技术是一种屏障指令，它可以让CPU或者编译器在执行内存相关操作时遵循特定的约束，目前多数的现代处理器都会乱序执行指令以最大化性能，但是该技术能够保证内存操作的顺序性，在内存屏障前执行的操作一定会先于内存屏障后执行的操作。垃圾收集中的屏障技术更像是一个钩子方法，它是在用户程序读取对象、创建新对象以及更新对象指针时执行的一段代码，根据操作类型的不同，我们可以将它们分成读屏障（Read barrier）和写屏障（Write barrier）两种，因为读屏障需要在读操作中加入代码片段，对用户程序的性能影响很大，所以编程语言往往都会采用写屏障保证三色不变性
+内存屏障技术是一种屏障指令，它可以让CPU或者编译器在执行内存相关操作时遵循特定的约束，目前多数的现代处理器都会乱序执行指令以最大化性能，但是该技术能够保证内存操作的顺序性，在内存屏障前执行的操作一定会先于内存屏障后执行的操作。垃圾收集中的屏障技术更像是一个**钩子方法**，它是在用户程序读取对象、创建新对象以及更新对象指针时执行的一段代码，根据操作类型的不同，我们可以将它们分成**读屏障（Read barrier）**和写屏障（Write barrier）两种，**因为读屏障需要在读操作中加入代码片段，对用户程序的性能影响很大，所以编程语言往往都会采用写屏障保证三色不变性。**
 
 
 
@@ -254,7 +269,7 @@ Golang的垃圾回收（GC）算法使用的是无无分代（对象没有代际
 
 - 弱三色不变式
 
-所有被黑色对象引用的白色对象都处于灰色保护状态。
+所有被黑色对象引用的白色对象都处于灰色保护状态（允许黑色对象指向白色对象，但必须保证一个前提，这个白色对象必须处于灰色对象的保护下）。
 
 ![img](https://cdn.nlark.com/yuque/0/2022/jpeg/26269664/1651036404003-e0ea569e-7a8a-4d9f-a08f-4bb9ed5c64ed.jpeg?x-oss-process=image%2Fwatermark%2Ctype_d3F5LW1pY3JvaGVp%2Csize_55%2Ctext_5YiY5Li55YawQWNlbGQ%3D%2Ccolor_FFFFFF%2Cshadow_50%2Ct_80%2Cg_se%2Cx_10%2Cy_10)
 
@@ -306,7 +321,10 @@ A.添加下游对象(C, B) //A 将下游对象C 更换为B， B被标记为灰�
 上述伪代码非常好理解，当黑色对象（slot）插入新的指向白色对象（ptr）的引用关系时，就尝试使用shade函数将这个新插入的引用（ptr）标记为灰色。
 
 
-![640 (1).png](https://s2.loli.net/2022/08/27/UoewBdHDpjbL2SP.png)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/VY8SELNGe94Cjxng5VbT4M7FkUgyAfhpj99S1E3KkyG9kbgAWz9mcJeJthjrVDZZ47DHBs3IgiaicSxjVvhlKUsw/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
+
+
 
 假设我们上图的例子并发可达性分析中使用插入写屏障：
 
@@ -322,9 +340,9 @@ A.添加下游对象(C, B) //A 将下游对象C 更换为B， B被标记为灰�
 
 ### 关于栈没有写屏障的原因
 
- 我们知道,黑色对象的内存槽有两种位置, `栈`和`堆`. 栈空间的特点是容量小,但是要求相应速度快,因为函数调用弹出频繁使用, 所以“插入屏障”机制,在**栈空间的对象操作中不使用**. 而仅仅使用在堆空间对象的操作中.
+ 黑色对象的内存槽有两种位置, `栈`和`堆`. 栈空间的特点是**容量小**,但是**要求响应速度快,因为函数调用弹出频繁使用**, 所以“插入屏障”机制,在**栈空间的对象操作中不使用**. 而仅仅使用在堆空间对象的操作中.
 
-**由于栈上的对象在垃圾回收中被认为是根对象，并没有写屏障，那么导致黑色的栈可能指向白色的堆对象，例如上图1中Root2指向H，且删除了由D指向H的引用，由于没有写屏障，那么H将会被删除。为了保障内存安全，Dijkstra必须为栈上的对象增加写屏障或者在标记阶段完成重新对栈上的对象进行扫描，这两种方法各有各的缺点，前者会大幅度增加写入指针的额外开销，后者重新扫描栈对象时需要暂停程序，垃圾收集算法的设计者需要在这两者之前做出权衡。**
+**由于栈上的对象在垃圾回收中被认为是根对象，并没有写屏障，那么导致黑色的栈可能指向白色的堆对象。为了保障内存安全，Dijkstra必须为栈上的对象增加写屏障或者在标记阶段完成重新对栈上的对象进行扫描，这两种方法各有各的缺点，前者会大幅度增加写入指针的额外开销，后者重新扫描栈对象时需要暂停程序，垃圾收集算法的设计者需要在这两者之前做出权衡。**
 
 
 
@@ -382,9 +400,12 @@ A.添加下游对象(C, B) //A 将下游对象C 更换为B， B被标记为灰�
 
 
 
-Yuasa在1990年的论文Real-time garbage collection on general-purpose machines 中提出了删除写屏障，因为一旦该写屏障开始工作，它会保证开启写屏障时堆上所有对象的可达。起始时STW扫描所有的goroutine栈，保证所有堆上在用的对象都处于灰色保护下，所以也被称作快照垃圾收集（Snapshot GC），这是破坏了“对象消失”的第二个条件（赋值器删除了全部从灰色对象到该白色对象的直接或间接引用）。
+Yuasa在1990年的论文Real-time garbage collection on general-purpose machines 中提出了删除写屏障，因为一旦该写屏障开始工作，它会保证开启写屏障时堆上所有对象的可达。起始时STW扫描所有的goroutine栈，保证所有堆上在用的对象都处于灰色保护下，所以也被称作**快照垃圾收集或者原始快照**（Snapshot GC），这是破坏了“对象消失”的第二个条件（赋值器删除了全部从灰色对象到该白色对象的直接或间接引用）
+
+原始快照(Snapshot At The Beginning，SATB)。当某个时刻 的 GC Roots 确定后，当时的对象图就已经确定了。当赋值器（业务线程）从灰色或者白色对象中删除白色指针时候，写屏障会捕捉这一行为，将这一行为通知给回收器。这样，基于起始快照的解决方案保守地将其目标对象当作存活的对象，这样就绝对不会有被误回收的对象，但是有扫描工作量浮动放大的风险。术语叫做追踪波面的回退。这个操作在「修改操作前」进行，JVM中 的 G1 垃圾回收器用的也是这个思路。
 
 ```
+
 // 黑色赋值器 Yuasa 屏障
 func YuasaWritePointer(slot *unsafe.Pointer, ptr unsafe.Pointer) {
     shade(*slot) 先将*slot标记为灰色
@@ -410,7 +431,7 @@ A.添加下游对象(B, C)     //A对象，更换下游B变成C。B被A删除，
 
 但是这样也会导致一个问题，由于会将**有存活可能的对象都标记成灰色**，因此最后可能会导致应该回收的对象未被回收，这个对象只有在下一个循环才会被回收，比如下图的D对象。
 
-![640.png](https://s2.loli.net/2022/08/27/JvYdRCk4QPyqrLO.png)
+![图片](https://mmbiz.qpic.cn/mmbiz_png/VY8SELNGe94Cjxng5VbT4M7FkUgyAfhpTuHVXfE7fSIbu8yNpJt877FyhAQuBB96eYr2wH7QcxKBIVxNrssIyQ/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1)
 
 **由于原始快照的原因，起始也是执行STW，删除写屏障不适用于栈特别大的场景，栈越大，STW扫描时间越长。**
 
@@ -437,6 +458,13 @@ A.添加下游对象(B, C)     //A对象，更换下游B变成C。B被A删除，
 
 ![image-20220821132611515](C:\Users\longp\AppData\Roaming\Typora\typora-user-images\image-20220821132611515.png)
 
+**插入写屏障和删除写屏障的短板：**
+
+-  插入写屏障：结束时需要STW来重新扫描栈，标记栈上引用的白色对象的存活； 
+-  删除写屏障：回收精度低，GC开始时STW扫描堆栈来记录初始快照，这个过程会保护开始时刻的所有存活对象。 
+
+
+
 ### **（三）混合写屏障**
 
 在 Go 语言 v1.7版本之前，运行时会使用Dijkstra插入写屏障保证强三色不变性，但是运行时并没有在所有的垃圾收集根对象上开启插入写屏障。因为应用程序可能包含成百上千的Goroutine，而垃圾收集的根对象一般包括全局变量和栈对象，如果运行时需要在几百个Goroutine的栈上都开启写屏障，会带来巨大的额外开销，所以 Go 团队在v1.8结合上述2种写屏障构成了混合写屏障，实现上选择了在标记阶段完成时暂停程序、将所有栈对象标记为灰色并重新扫描。
@@ -444,6 +472,7 @@ A.添加下游对象(B, C)     //A对象，更换下游B变成C。B被A删除，
 Go 语言在v1.8组合Dijkstra插入写屏障和Yuasa删除写屏障构成了如下所示的混合写屏障，该写屏障会将被覆盖的对象标记成灰色并在当前栈没有扫描时将新对象也标记成灰色：
 
 ```
+
 writePointer(slot, ptr):
     shade(*slot)
     if current stack is grey:
@@ -454,18 +483,14 @@ writePointer(slot, ptr):
 为了移除栈的重扫描过程，除了引入混合写屏障之外，在垃圾收集的标记阶段，我们还需要将创建的所有新对象都标记成黑色，防止新分配的栈内存和堆内存中的对象被错误地回收，因为栈内存在标记阶段最终都会变为黑色，所以不再需要重新扫描栈空间。总结来说主要有这几点：
 
 - GC开始将栈上的对象全部扫描并标记为黑色；
+
 - GC期间，任何在栈上创建的新对象，均为黑色；
+
 - 被删除的堆对象标记为灰色；
+
 - 被添加的堆对象标记为灰色。
 
-
-
-**插入写屏障和删除写屏障的短板：**
-
--  插入写屏障：结束时需要STW来重新扫描栈，标记栈上引用的白色对象的存活； 
--  删除写屏障：回收精度低，GC开始时STW扫描堆栈来记录初始快照，这个过程会保护开始时刻的所有存活对象。 
-
-
+  
 
 Go V1.8版本引入了混合写屏障机制（hybrid write barrier），避免了对栈re-scan的过程，极大的减少了STW的时间。结合了两者的优点。
 
@@ -606,7 +631,7 @@ new 栈对象9；
 
 
 
-### 七、总结
+
 
 ## **五、GC演进过程**
 
@@ -677,6 +702,7 @@ Golang GC 相关的代码在**runtime/mgc.go**文件下，可以看见GC总共�
 **GC过程代码示例**
 
 ```
+
 func gcfinished() *int {
   p := 1
   runtime.SetFinalizer(&p, func(_ *int) {
@@ -705,6 +731,7 @@ func main() {
 运行程序
 
 ```
+
 hewittwang@HEWITTWANG-MB0 rtx % GODEBUG=gctrace=1 go run new1.go  
 gc 1 @0.015s 0%: 0.015+0.36+0.043 ms clock, 0.18+0.55/0.64/0.13+0.52 ms cpu, 4->4->0 MB, 5 MB goal, 12 P
 gc 2 @0.024s 1%: 0.045+0.19+0.018 ms clock, 0.54+0.37/0.31/0.041+0.22 ms cpu, 4->4->0 MB, 5 MB goal, 12 P
@@ -714,6 +741,7 @@ gc 2 @0.024s 1%: 0.045+0.19+0.018 ms clock, 0.54+0.37/0.31/0.041+0.22 ms cpu, 4-
 栈分析
 
 ```
+
 gc 2      : 第一个GC周期
 @0.024s   : 从程序开始运行到第一次GC时间为0.024 秒
 1%        : 此次GC过程中CPU 占用率
@@ -748,6 +776,7 @@ CPU time
 运行时会通过runtime.gcTrigger.test方法决定是否需要触发垃圾收集，当满足触发垃圾收集的基本条件（即满足_GCoff阶段的退出条件）时——允许垃圾收集、程序没有崩溃并且没有处于垃圾收集循环，该方法会根据三种不同方式触发进行不同的检查：
 
 ```
+
 //mgc.go 文件 runtime.gcTrigger.test
  func (t gcTrigger) test() bool {
     //测试是否满足触发垃圾手机的基本条件
@@ -790,6 +819,7 @@ Go运行时会将堆上的对象按大小分成微对象、小对象和大对象
 2.当用户程序申请分配32KB以上的大对象时，一定会构建 runtime.gcTrigger结构体尝试触发垃圾收集。
 
 ```
+
 func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
     省略代码 ...
     shouldhelpgc := false  
@@ -838,6 +868,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 用户程序会通过runtime.GC函数在程序运行期间主动通知运行时执行，该方法在调用时会阻塞调用方直到当前垃圾收集循环完成，在垃圾收集期间也可能会通过STW暂停整个程序：
 
 ```
+
 func GC() {
     //在正式开始垃圾收集前，运行时需要通过runtime.gcWaitOnMark等待上一个循环的标记终止、标记和清除终止阶段完成；
     n := atomic.Load(&work.cycles)
@@ -877,6 +908,7 @@ func GC() {
 运行时会在应用程序启动时在后台开启一个用于强制触发垃圾收集的Goroutine，该Goroutine调用runtime.gcStart尝试启动新一轮的垃圾收集：
 
 ```
+
 // start forcegc helper goroutine
 func init() {
    go forcegchelper()
@@ -899,10 +931,21 @@ func forcegchelper() {
          println("GC forced")
       }
       // Time-triggered, fully concurrent.
-      gcStart(gcTrigger{kind: gcTriggerTime, now: nanotime()})
+      gcStart(gcTrigger{kind: gcTriggerTime, n
+      ow: nanotime()})
    }
 }
 ```
+
+## 八、问题思考
+
+1.为什么删除写屏障的时候要原始快照？
+
+2.删除写屏障出现已扫描黑色对象新增白色对象的怎么处理？
+
+3.关于内存管理，gc整体流程，go如何将代码转化为二进制？
+
+
 
 **参考文献**
 
@@ -930,7 +973,10 @@ func forcegchelper() {
 
 (http://t.zoukankan.com/zpcoding-p-13259943.html)
 
-   7.《深入理解Java虚拟机：JVM高级特性与最佳实践（第3版）》—机械工业出版社
+  7.《深入理解Java虚拟机：JVM高级特性与最佳实践（第3版）》—机械工业出版社
 
-8. [《腾讯妹子图解Golang内存分配和垃圾回收》](https://mp.weixin.qq.com/s/iAy9ReQhnmCYUFvwYroGPA)
-9. [《Golang修养之路》](https://www.yuque.com/aceld/golang/zhzanb)
+  8.《腾讯妹子图解Golang内存分配和垃圾回收》](https://mp.weixin.qq.com/s/iAy9ReQhnmCYUFvwYroGPA)
+
+  9.[《Golang修养之路》](https://www.yuque.com/aceld/golang/zhzanb)
+
+10. https://golang.design/under-the-hood/zh-cn/part2runtime/ch08gc/barrier/
