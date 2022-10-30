@@ -9,6 +9,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # etcd读写请求的执行过程
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 ## etcd 读请求的执行过程
 

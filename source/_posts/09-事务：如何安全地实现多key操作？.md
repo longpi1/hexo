@@ -9,6 +9,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # 09.事务：如何安全地实现多key操作？
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 在软件开发过程中，我们经常会遇到需要批量执行多个key操作的业务场景，比如转账案例中，Alice给Bob转账100元，Alice账号减少100，Bob账号增加100，这涉及到多个key的原子更新。
 

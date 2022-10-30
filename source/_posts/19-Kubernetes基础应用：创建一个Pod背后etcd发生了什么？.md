@@ -10,6 +10,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # 19.Kubernetes基础应用：创建一个Pod背后etcd发生了什么？
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 今天我们通过在Kubernetes集群中创建一个Pod的案例，分析etcd在其中发挥的作用，深入了解Kubernetes是如何使用etcd的。
 

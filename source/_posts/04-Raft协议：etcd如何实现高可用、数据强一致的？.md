@@ -9,6 +9,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # 04.Raft协议：etcd如何实现高可用、数据强一致的？
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 ## 如何避免单点故障
 

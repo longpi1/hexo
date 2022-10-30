@@ -10,6 +10,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # 20.Kubernetes高级应用：如何优化业务场景使etcd能支撑上万节点集群？
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 Kubernetes社区官网文档目前声称支持最大集群节点数为5000，但是云厂商已经号称支持15000节点的Kubernetes集群了，那么为什么一个小小的etcd能支撑15000节点Kubernetes集群呢？
 

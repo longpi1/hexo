@@ -5,6 +5,9 @@ page.banner_mask_alpha = page.banner_mask_alpha || theme.post.banner_mask_alpha
 %>
 
 <div class="container-fluid nopadding-x">
+  <aside class="sidebar" style="padding-left: 2rem; margin-right: -1rem">
+    <%- partial('_partials/post/toc') %>
+  </aside>
   <div class="row nomargin-x">
     <div class="side-col d-none d-lg-block col-lg-2">
       <%- inject_point('postLeft') %>

@@ -9,6 +9,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 ## etcd 写请求的执行过程
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 etcd 一个写请求执行流程又是怎样的呢？在执行写请求过程中，如果进程 crash 了，如何保证数据不丢、命令不重复执行呢？
 

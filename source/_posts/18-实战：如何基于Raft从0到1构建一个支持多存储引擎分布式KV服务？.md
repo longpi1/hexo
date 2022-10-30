@@ -9,6 +9,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # 18.实战：如何基于Raft从0到1构建一个支持多存储引擎分布式KV服务？
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 今天聊聊如何实现一个类etcd、支持多存储引擎的KV服务，基于etcd自带的 [raftexample](https://github.com/etcd-io/etcd/tree/v3.4.9/contrib/raftexample) 项目快速构建它。
 

@@ -9,6 +9,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # 10.boltdb：如何持久化存储你的key-value数据？
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 boltdb是如何组织你的key-value数据的呢？当你读写一个key时，boltdb是如何工作的？
 

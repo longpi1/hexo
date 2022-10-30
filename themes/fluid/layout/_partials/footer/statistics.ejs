@@ -10,13 +10,7 @@
         <%- pv_texts[1] %>
       </span>
     <% } %>
-    <% if (uv_texts.length >= 2) { %>
-      <span id="leancloud-site-uv-container" style="display: none">
-        <%- uv_texts[0] %>
-        <span id="leancloud-site-uv"></span>
-        <%- uv_texts[1] %>
-      </span>
-    <% } %>
+
     <% import_js(theme.static_prefix.internal_js, 'leancloud.js', 'defer') %>
 
   <% } else if (theme.footer.statistics.source === 'busuanzi') { %>

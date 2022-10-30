@@ -9,6 +9,7 @@ categories: etcd
 description: 极客时间etcd课程笔记
 ---
 # 12.一致性：为什么基于Raft实现的etcd还会出现数据不一致？
+> 本文笔记来自：「极客时间ETCD实战课」，原文链接：https://time.geekbang.org/column/article/354292?cid=100069901
 
 etcd是基于Raft实现的高可用、强一致分布式存储。
 
